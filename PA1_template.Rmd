@@ -1,25 +1,132 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+## Analysing Activity Data
+
+Read activity data set into R
+
+```{r Read}
+activity <- read.csv("activity.csv", stringsAsFactors = FALSE)
+```
+
+Convert charcter date to 'Date' format
+```{r date}
+activity$Date1 <- as.Date(activity$date)
+```
+Perform summary statistics on the data.
+```{r sum}
+summary(activity)
+```
+We see that 'steps' variable has 2304 missing values . 
+Lets ignore the missing values for now.
+
+Calculate totalnumber of steps taken per day and plot histogram. 
+```{r total_steps}
+totalStepsDay <- tapply(activity$steps , activity$Date1 , sum , na.rm = TRUE)
+
+hist(totalStepsDay , xlab = "Total Steps per day" , main = "Histogram of Total Steps Taken per Day")
+```
+
+Calculate the mean and median of the total steps taken per day .
+```{r}
+summary(totalStepsDay)
+```
+
+Average daily activity pattern.
+
+Calculate the mean of steps for each interval across all Dates. Plot a time series of interval against this mean. 
+```{r}
+MeanStepForInterval <- aggregate(steps ~ interval  , data = activity , FUN = "mean")
+
+with(MeanStepForInterval, plot( interval , steps , type = "l"))
+```
+
+The 5 minute interval having the maximum value of steps is :
+```{r}
+MeanStepForInterval[which.max(MeanStepForInterval$steps),]
+```
+
+Imputing missing values : 
+
+We noticed that there are 2304 missing values(NA) for the variable 'steps'.
+Lets determine which are the dates for which there are NAs.
+
+```{r}
+unique(activity[is.na(activity$steps),"Date1"])
+```
+
+This shows that 8 dates don't have any steps recorded. There are 288 steps for each date which have missing values. Lets substitute the missing values with the mean of each step calculated before in 'MeanStepforInterval'.
+
+```{r}
+library(dplyr)
+
+MissingValueDF <- filter(activity , is.na(steps))
+
+MissingValueDF$steps <- MeanStepForInterval$steps
+
+OriginalValueDf <- filter(activity , !is.na(steps))
+
+ReplacedDF <- rbind(MissingValueDF, OriginalValueDf)
+```
+
+Check if there are any missing values in the imputed data frame.
+
+```{r}
+summary(ReplacedDF)
+```
+
+There are no more missing values.
+
+Repeat the histogram with the imputed data frame . Check if there is a difference in the estimates and what is the impact of imputing missing values ? 
+
+```{r}
+imputed_totalStepsDay <- tapply(ReplacedDF$steps , ReplacedDF$Date1 , sum)
+
+hist(imputed_totalStepsDay , xlab = "Total Steps per day " , main = "Histogram of Total Steps Taken per Day after Imputing Missing Values")
+```
+
+Compute the new mean amd median of total steps taken per day.
+
+```{r}
+summary(imputed_totalStepsDay)
+```
+
+The mean changes from 9354 to 10770 .
+
+Check for change in the activty pattern between weekdays and weekend:
+
+Find out the day of the week .
+Set a factor variable to '0'for weekday and '1' for weekend.
+
+```{r}
+ReplacedDF <- mutate(ReplacedDF, Day =  weekdays(Date1))
+SetDay <- function(x){ 
+  
+  weekend = c("Saturday","Sunday")
+  
+  if (x %in% weekend ) {
+    y <- '1' }
+  else 
+    y <- '0' 
+  return(y)  }
+ReplacedDF$DayFactor <- sapply(ReplacedDF$Day , SetDay)
+ReplacedDF$DayFactor <- factor(ReplacedDF$DayFactor , labels = c("Weekday" , "Weekend"))
+```
+
+Create a panel plot of average steps per interval across all dates for weekday and weekend respectively.
+
+```{r}
+
+MeanStep_DayInterval_2 <- aggregate(steps ~ DayFactor + interval , data = ReplacedDF , FUN = "mean")
+
+library(ggplot2)
+
+g <- ggplot(MeanStep_DayInterval_2 , aes(interval ,steps ))
+
+g+ geom_line() + facet_grid(.~ DayFactor)
+```
+
+The plot shows that on weekdays the average steps taken is more than on weekends.
+
+Thank You!
+------------
 
 
-## Loading and preprocessing the data
 
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
